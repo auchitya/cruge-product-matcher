@@ -33,9 +33,6 @@
   input[type=url]:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
   button { border: 0; border-radius: 12px; padding: 0 22px; background: var(--brand); color: var(--brand-ink); font-weight: 600; font-size: 15px; cursor: pointer; }
   button:disabled { opacity: .6; cursor: progress; }
-  .examples { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; color: var(--muted); font-size: 13px; }
-  .chip { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 4px 12px; font-size: 13px; cursor: pointer; }
-  .chip:hover { border-color: var(--accent); }
   .msg { margin-top: 24px; padding: 14px 16px; border-radius: var(--radius); background: var(--err-bg); color: var(--err); }
   .loading { margin-top: 28px; color: var(--muted); display: flex; align-items: center; gap: 10px; }
   .spinner { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--accent); animation: spin .8s linear infinite; }
@@ -109,15 +106,6 @@
     <input id="url" type="url" required placeholder="https://www.amazon.in/dp/…" autocomplete="off">
     <button id="go" type="submit">Find it</button>
   </form>
-  <div class="examples">Try:
-    <button class="chip" data-url="https://www.amazon.in/dp/B0CHX1W1XY">iPhone 15</button>
-    <button class="chip" data-url="https://www.amazon.in/dp/B0H2J3PRKV">Galaxy S25</button>
-    <button class="chip" data-url="https://www.amazon.in/dp/B0F7X5FC43">Sony Bravia 55″</button>
-    <button class="chip" data-url="https://www.amazon.in/dp/B0F3JKY28G">Xiaomi FX Pro 43″</button>
-    <button class="chip" data-url="https://www.amazon.in/dp/B0F2FFQPYW">adidas Grand Court</button>
-    <button class="chip" data-url="https://www.amazon.in/dp/B098PC5X7Y">Nike Court Vision</button>
-    <button class="chip" data-url="https://www.amazon.in/dp/B0BFX1ND5G">Puma polo</button>
-  </div>
 
   <div id="out"></div>
 
@@ -229,7 +217,6 @@ async function run(url) {
 }
 
 $("#f").addEventListener("submit", e => { e.preventDefault(); run($("#url").value.trim()); });
-document.querySelectorAll(".chip").forEach(c => c.addEventListener("click", () => { $("#url").value = c.dataset.url; run(c.dataset.url); }));
 const initial = new URLSearchParams(location.search).get("url");
 if (initial) { $("#url").value = initial; run(initial); }
 </script>
