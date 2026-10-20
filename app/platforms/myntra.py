@@ -1,4 +1,9 @@
-"""Myntra: server-rendered listing/product pages with data in window.__myx."""
+"""Myntra: server-rendered listing/product pages with data in window.__myx.
+
+From some networks (cloud servers) the web pages come back without that data, so the adapter falls
+back to the JSON API the Myntra web app itself calls (/gateway/v2/...), which returns the same
+objects.
+"""
 from __future__ import annotations
 
 from .. import http
@@ -37,7 +42,8 @@ def parse_search(myx: dict, category: Category) -> list[ProductSpec]:
 
 
 def parse_stock_from_product_page(myx: dict | None) -> bool | None:
-    pdp = (myx or {}).get("pdpData")
+    # web page: {"pdpData": {...}}; JSON API: {"style": {...}} -- same fields
+    pdp = (myx or {}).get("pdpData") or (myx or {}).get("style")
     if not pdp:
         return None
     flags = pdp.get("flags") or {}
@@ -49,6 +55,25 @@ def parse_stock_from_product_page(myx: dict | None) -> bool | None:
     return True
 
 
+_API_HEADERS = {"x-meta-app": "channel=web", "x-myntraweb": "Yes", "x-requested-with": "browser",
+                "Accept": "application/json"}
+
+
+async def _api_get(url: str, **params) -> dict:
+    """GET a Myntra JSON API; it needs the session cookies the homepage sets (401 without them)."""
+    try:
+        r = await http.get(url, headers=_API_HEADERS, params=params or None, retries=1)
+    except http.FetchError as e:
+        if "401" not in str(e) and "403" not in str(e):
+            raise
+        await http.get(f"{BASE}/", retries=1)  # pick up session cookies, then try once more
+        r = await http.get(url, headers=_API_HEADERS, params=params or None, retries=1)
+    try:
+        return r.json()
+    except ValueError as e:
+        raise http.FetchError("Myntra's API returned something that isn't JSON") from e
+
+
 class Myntra(Platform):
     name = "Myntra"
     key = "myntra"
@@ -57,10 +82,18 @@ class Myntra(Platform):
         slug = "-".join(tokens(query)) or "search"
         r = await http.get(f"{BASE}/{slug}", params={"rawQuery": query})
         myx = embedded_json(r.text, "__myx")
-        if myx is None:
-            raise http.FetchError("Myntra returned a page without search data")
+        if myx is None:  # page without data (seen from cloud servers): ask the JSON API instead
+            results = await _api_get(f"{BASE}/gateway/v2/search/{slug}", rawQuery=query, rows=50, o=0,
+                                     plaEnabled="false")
+            myx = {"searchData": {"results": results}}
         return parse_search(myx, category)
 
     async def check_stock(self, spec: ProductSpec) -> bool | None:
         r = await http.get(f"{BASE}/{spec.platform_id}")
-        return parse_stock_from_product_page(embedded_json(r.text, "__myx"))
+        myx = embedded_json(r.text, "__myx")
+        if myx is None:
+            try:
+                myx = await _api_get(f"{BASE}/gateway/v2/product/{spec.platform_id}")
+            except http.FetchError:
+                return None
+        return parse_stock_from_product_page(myx)

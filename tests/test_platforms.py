@@ -63,3 +63,12 @@ def test_flipkart_identity_text_only_reads_this_products_codes():
             '{"similarProducts":[{"styleCode":"ZZ1111"}]}')
     text = flipkart.identity_text(page)
     assert "KS9354" in text and "ZZ1111" not in text
+
+
+def test_myntra_api_shapes_parse_like_the_page(platform_json):
+    # The JSON API returns the same objects as the page's __myx data
+    page = platform_json("myntra_search_smashic")
+    api_wrapped = {"searchData": {"results": page["searchData"]["results"]}}
+    assert myntra.parse_search(api_wrapped, Category.SNEAKERS)
+    assert myntra.parse_stock_from_product_page({"style": {"flags": {"outOfStock": True}}}) is False
+    assert myntra.parse_stock_from_product_page({"style": {"flags": {}, "sizes": [{"available": True}]}}) is True

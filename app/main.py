@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 import logging
+import re
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -41,6 +43,38 @@ async def api_match(req: MatchRequest) -> MatchResponse:
 @app.get("/api/health")
 async def health() -> dict:
     return {"ok": True}
+
+
+# Fixed, read-only probes: can this server reach each platform, and does it get real data back?
+# (Sites treat cloud servers differently from home connections; this shows how, per platform.)
+_PROBES = {
+    "amazon_product": "https://www.amazon.in/dp/B0CHX1W1XY",
+    "flipkart_search": "https://www.flipkart.com/search?q=apple+iphone+15",
+    "flipkart_product": "https://www.flipkart.com/adidas-grand-court-3-0-sneakers-men/p/itm7feb0e2e799fe?pid=SHOHJJ8KMECR4HZM",
+    "croma_search_api": "https://api.croma.com/searchservices/v1/search?currentPage=0&query=iphone%2015%3Arelevance&fields=FULL&channel=WEB&channelCode=400049",
+    "myntra_search_page": "https://www.myntra.com/puma-smashic?rawQuery=puma%20smashic",
+    "myntra_search_api": "https://www.myntra.com/gateway/v2/search/puma-smashic?rawQuery=puma%20smashic&rows=5&o=0",
+}
+_MARKERS = {"amazon_product": "productTitle", "flipkart_search": "__INITIAL_STATE__", "flipkart_product": "Article Number",
+            "croma_search_api": '"products"', "myntra_search_page": "__myx", "myntra_search_api": '"products"'}
+
+
+@app.get("/api/diag")
+async def diag() -> dict:
+    async def probe(name: str, url: str) -> dict:
+        try:
+            headers = {"x-meta-app": "channel=web", "x-myntraweb": "Yes"} if "gateway" in url else None
+            if "gateway" in url:
+                await http.session().get("https://www.myntra.com/")  # the API needs the homepage's cookies
+            r = await http.session().get(url, headers=headers, allow_redirects=True)
+            title = re.search(r"<title[^>]*>([^<]{0,80})", r.text or "")
+            return {"status": r.status_code, "bytes": len(r.text or ""), "has_data": _MARKERS[name] in (r.text or ""),
+                    "title": title.group(1).strip() if title else None}
+        except Exception as e:
+            return {"error": f"{type(e).__name__}: {e}"[:200]}
+
+    results = await asyncio.gather(*(probe(n, u) for n, u in _PROBES.items()))
+    return dict(zip(_PROBES, results))
 
 
 @app.get("/")
