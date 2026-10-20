@@ -8,3 +8,8 @@ services:
     region: singapore
     healthCheckPath: /api/health
     autoDeploy: true
+    envVars:
+      # Residential proxy for the requests sites refuse from cloud servers (Myntra, Flipkart product
+      # pages), e.g. http://user:pass@host:port. Set in the Render dashboard; never committed.
+      - key: PROXY_URL
+        sync: false

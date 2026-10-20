@@ -80,8 +80,10 @@ class Myntra(Platform):
 
     async def search(self, query: str, category: Category) -> list[ProductSpec]:
         slug = "-".join(tokens(query)) or "search"
-        r = await http.get(f"{BASE}/{slug}", params={"rawQuery": query})
-        myx = embedded_json(r.text, "__myx")
+        myx = None
+        if not http.proxy_for(BASE):  # through a paid proxy, skip the ~500 KB page and use the ~60 KB API
+            r = await http.get(f"{BASE}/{slug}", params={"rawQuery": query})
+            myx = embedded_json(r.text, "__myx")
         if myx is None:  # page without data (seen from cloud servers): ask the JSON API instead
             results = await _api_get(f"{BASE}/gateway/v2/search/{slug}", rawQuery=query, rows=50, o=0,
                                      plaEnabled="false")
@@ -89,8 +91,10 @@ class Myntra(Platform):
         return parse_search(myx, category)
 
     async def check_stock(self, spec: ProductSpec) -> bool | None:
-        r = await http.get(f"{BASE}/{spec.platform_id}")
-        myx = embedded_json(r.text, "__myx")
+        myx = None
+        if not http.proxy_for(BASE):
+            r = await http.get(f"{BASE}/{spec.platform_id}")
+            myx = embedded_json(r.text, "__myx")
         if myx is None:
             try:
                 myx = await _api_get(f"{BASE}/gateway/v2/product/{spec.platform_id}")

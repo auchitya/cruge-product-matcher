@@ -51,6 +51,8 @@ Amazon link ──► amazon.py         read the product page → ProductSpec (b
 | Croma | the site's own JSON search API (`api.croma.com/searchservices`) | `pdp/deliveryoption?pinCode=` for Mumbai/Delhi/Bengaluru (any = in stock) |
 | Myntra | listing page's embedded `window.__myx` JSON | product page `flags.outOfStock` / all sizes unavailable |
 
+**Hosting note.** From cloud servers (Render, and any other free host), Myntra answers with a fake "Site Maintenance" page and Flipkart's product pages answer HTTP 429; Amazon, Flipkart search and Croma work. Set `PROXY_URL` (a residential proxy, `http://user:pass@host:port`) and only those blocked requests go through it, to keep proxy bandwidth small (Myntra via its ~60 KB JSON API instead of the ~500 KB page). `GET /api/diag` shows, from the server, what each site returns and whether it went through the proxy.
+
 Croma sits behind Akamai, which blocks normal HTTP clients and headless Chrome. All requests go through [`curl_cffi`](https://github.com/lexiforest/curl_cffi) with a Chrome TLS fingerprint, which is enough for every platform without running a browser. A full lookup takes ~3–5 s.
 
 

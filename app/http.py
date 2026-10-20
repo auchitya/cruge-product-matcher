@@ -3,11 +3,18 @@
 Croma sits behind Akamai, which rejects ordinary Python/curl TLS fingerprints
 (HTTP 403) and even headless Chrome. curl_cffi impersonates a real Chrome TLS
 handshake, which is enough to be served like a normal browser.
+
+Some sites refuse cloud-server IP addresses outright (Myntra answers with a fake
+"Site Maintenance" page; Flipkart's product pages answer 429). When PROXY_URL is set
+(e.g. a residential proxy, http://user:pass@host:port), only those requests go through
+it -- residential proxies are billed by bandwidth, and everything else works directly.
 """
 from __future__ import annotations
 
 import asyncio
 import logging
+import os
+from urllib.parse import urlparse
 
 from curl_cffi.requests import AsyncSession, Response
 
@@ -38,12 +45,30 @@ class FetchError(Exception):
     pass
 
 
+PROXY_URL = os.getenv("PROXY_URL", "").strip() or None
+
+
+def proxy_for(url: str) -> str | None:
+    """The proxy to use for this URL, or None for a direct request."""
+    if not PROXY_URL:
+        return None
+    u = urlparse(url)
+    host = u.netloc.lower()
+    if host.endswith("myntra.com"):
+        return PROXY_URL
+    if host.endswith("flipkart.com") and "/p/" in u.path:  # product pages; search works directly
+        return PROXY_URL
+    return None
+
+
 async def get(url: str, *, params: dict | None = None, headers: dict | None = None,
               retries: int = 2, ok_statuses: tuple[int, ...] = (200,)) -> Response:
     last: Exception | None = None
     for attempt in range(retries + 1):
         try:
-            r = await session().get(url, params=params, headers=headers, allow_redirects=True)
+            proxy = proxy_for(url)
+            r = await session().get(url, params=params, headers=headers, allow_redirects=True, proxy=proxy,
+                                    timeout=40 if proxy else 20)
             if r.status_code in ok_statuses:
                 return r
             last = FetchError(f"HTTP {r.status_code} from {url.split('?')[0]}")

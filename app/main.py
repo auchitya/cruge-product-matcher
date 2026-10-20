@@ -64,12 +64,13 @@ async def diag() -> dict:
     async def probe(name: str, url: str) -> dict:
         try:
             headers = {"x-meta-app": "channel=web", "x-myntraweb": "Yes"} if "gateway" in url else None
-            if "gateway" in url:
-                await http.session().get("https://www.myntra.com/")  # the API needs the homepage's cookies
-            r = await http.session().get(url, headers=headers, allow_redirects=True)
+            if "gateway" in url:  # the API needs the homepage's cookies
+                await http.session().get("https://www.myntra.com/", proxy=http.proxy_for(url), timeout=40)
+            r = await http.session().get(url, headers=headers, allow_redirects=True, proxy=http.proxy_for(url),
+                                         timeout=40)
             title = re.search(r"<title[^>]*>([^<]{0,80})", r.text or "")
             return {"status": r.status_code, "bytes": len(r.text or ""), "has_data": _MARKERS[name] in (r.text or ""),
-                    "title": title.group(1).strip() if title else None}
+                    "title": title.group(1).strip() if title else None, "via_proxy": bool(http.proxy_for(url))}
         except Exception as e:
             return {"error": f"{type(e).__name__}: {e}"[:200]}
 

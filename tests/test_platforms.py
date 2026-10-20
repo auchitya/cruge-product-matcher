@@ -72,3 +72,15 @@ def test_myntra_api_shapes_parse_like_the_page(platform_json):
     assert myntra.parse_search(api_wrapped, Category.SNEAKERS)
     assert myntra.parse_stock_from_product_page({"style": {"flags": {"outOfStock": True}}}) is False
     assert myntra.parse_stock_from_product_page({"style": {"flags": {}, "sizes": [{"available": True}]}}) is True
+
+
+def test_only_blocked_requests_go_through_the_proxy(monkeypatch):
+    from app import http
+    monkeypatch.setattr(http, "PROXY_URL", "http://user:pass@proxy.example:8000")
+    assert http.proxy_for("https://www.myntra.com/gateway/v2/search/x")
+    assert http.proxy_for("https://www.flipkart.com/some-shoe/p/itm123?pid=X")  # product page
+    assert not http.proxy_for("https://www.flipkart.com/search?q=iphone")  # search works directly
+    assert not http.proxy_for("https://www.amazon.in/dp/B0CHX1W1XY")
+    assert not http.proxy_for("https://api.croma.com/searchservices/v1/search")
+    monkeypatch.setattr(http, "PROXY_URL", None)
+    assert not http.proxy_for("https://www.myntra.com/")
