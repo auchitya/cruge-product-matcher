@@ -65,17 +65,25 @@ async def diag() -> dict:
         try:
             headers = {"x-meta-app": "channel=web", "x-myntraweb": "Yes"} if "gateway" in url else None
             if "gateway" in url:  # the API needs the homepage's cookies
-                await http.session().get("https://www.myntra.com/", proxy=http.proxy_for(url), timeout=40)
+                await http.session().get("https://www.myntra.com/", proxy=http.proxy_for(url), timeout=25)
             r = await http.session().get(url, headers=headers, allow_redirects=True, proxy=http.proxy_for(url),
-                                         timeout=40)
+                                         timeout=25)
             title = re.search(r"<title[^>]*>([^<]{0,80})", r.text or "")
             return {"status": r.status_code, "bytes": len(r.text or ""), "has_data": _MARKERS[name] in (r.text or ""),
                     "title": title.group(1).strip() if title else None, "via_proxy": bool(http.proxy_for(url))}
         except Exception as e:
             return {"error": f"{type(e).__name__}: {e}"[:200]}
 
-    results = await asyncio.gather(*(probe(n, u) for n, u in _PROBES.items()))
-    return dict(zip(_PROBES, results))
+    results = dict(zip(_PROBES, await asyncio.gather(*(probe(n, u) for n, u in _PROBES.items()))))
+    if http.PROXY_URL:  # where does the proxy exit? (Cloudflare's trace page reports the visitor's IP/country)
+        try:
+            r = await http.session().get("https://www.cloudflare.com/cdn-cgi/trace", proxy=http.PROXY_URL, timeout=15)
+            info = dict(line.split("=", 1) for line in r.text.split() if "=" in line)
+            results["proxy_exit"] = {k: info.get(k) for k in ("loc", "colo")}
+        except Exception as e:
+            results["proxy_exit"] = {"error": f"{type(e).__name__}: {e}"[:200]}
+    results["proxy_scope"] = sorted(http.PROXY_SCOPE) if http.PROXY_URL else None
+    return results
 
 
 @app.get("/")

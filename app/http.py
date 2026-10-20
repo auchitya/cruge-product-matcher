@@ -69,11 +69,13 @@ def proxy_for(url: str) -> str | None:
 async def get(url: str, *, params: dict | None = None, headers: dict | None = None,
               retries: int = 2, ok_statuses: tuple[int, ...] = (200,)) -> Response:
     last: Exception | None = None
+    proxy = proxy_for(url)
+    if proxy:  # proxies are slower and occasionally stall: fail fast rather than make the user wait
+        retries = min(retries, 1)
     for attempt in range(retries + 1):
         try:
-            proxy = proxy_for(url)
             r = await session().get(url, params=params, headers=headers, allow_redirects=True, proxy=proxy,
-                                    timeout=40 if proxy else 20)
+                                    timeout=20)
             if r.status_code in ok_statuses:
                 return r
             last = FetchError(f"HTTP {r.status_code} from {url.split('?')[0]}")

@@ -26,6 +26,7 @@ PLATFORMS: dict[Category, list[Platform]] = {
 }
 
 STOCK_CHECKS = 3  # how many matching listings we open to look for one that is in stock
+PLATFORM_BUDGET = 45  # seconds per platform; past that it shows "Couldn't check" instead of hanging
 CODE_CHECKS = 10  # how many promising listings we open to compare product identifiers
 CACHE_TTL = 600
 _cache: dict[str, tuple[float, MatchResponse]] = {}
@@ -225,7 +226,15 @@ async def match(url: str) -> MatchResponse:
         raise amazon.AmazonError(
             "This doesn't look like a smartphone, TV, pair of sneakers or t-shirt/polo/jersey — "
             "those are the four categories supported.")
-    results = await asyncio.gather(*(check_platform(p, src) for p in PLATFORMS[src.category]))
+
+    async def bounded(p: Platform) -> PlatformResult:
+        try:
+            return await asyncio.wait_for(check_platform(p, src), PLATFORM_BUDGET)
+        except asyncio.TimeoutError:
+            return PlatformResult(platform=p.name, status=Status.ERROR,
+                                  error=f"{p.name} took longer than {PLATFORM_BUDGET}s to answer; try again in a moment")
+
+    results = await asyncio.gather(*(bounded(p) for p in PLATFORMS[src.category]))
     resp = MatchResponse(source=src, results=list(results), elapsed_ms=int((time.monotonic() - t0) * 1000))
     if not any(r.status == Status.ERROR for r in results):
         _cache[asin] = (time.monotonic(), resp)

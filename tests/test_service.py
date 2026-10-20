@@ -107,3 +107,27 @@ def test_listing_with_a_different_style_code_is_rejected():
     r = run(CodePlatform([base], pages={"base": "Style Code:LA1520"}), SHOE_SRC)
     assert r.status == Status.NOT_LISTED
     assert any(c.name == "Style code" and not c.ok for c in r.near_misses[0].checks)
+
+
+def test_slow_platform_becomes_couldnt_check_not_a_hang(monkeypatch):
+    import asyncio as aio
+
+    class Slow(FakePlatform):
+        async def search(self, query, category):
+            await aio.sleep(5)
+            return []
+
+    monkeypatch.setattr(service, "PLATFORM_BUDGET", 0.2)
+    monkeypatch.setitem(service.PLATFORMS, Category.SMARTPHONE, [Slow([])])
+
+    async def fake_fetch(url):
+        return SRC
+
+    monkeypatch.setattr(service.amazon, "fetch_spec", fake_fetch)
+
+    async def fake_resolve(url):
+        return url, "B000TEST01"
+
+    monkeypatch.setattr(service.amazon, "resolve_url", fake_resolve)
+    res = asyncio.run(service.match("https://www.amazon.in/dp/B000TEST01"))
+    assert res.results[0].status == Status.ERROR and "longer than" in res.results[0].error
