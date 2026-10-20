@@ -27,7 +27,8 @@ PLATFORMS: dict[Category, list[Platform]] = {
 
 STOCK_CHECKS = 3  # how many matching listings we open to look for one that is in stock
 PLATFORM_BUDGET = 45  # seconds per platform; past that it shows "Couldn't check" instead of hanging
-CODE_CHECKS = 10  # how many promising listings we open to compare product identifiers
+CODE_CHECKS = 10  # how many promising listings we open to compare product identifiers (at most)
+PAGE_BATCH = 3  # opened in parallel per batch; later batches only if no proof yet
 CACHE_TTL = 600
 _cache: dict[str, tuple[float, MatchResponse]] = {}
 
@@ -189,32 +190,40 @@ async def _verify_identifiers(platform: Platform, src: ProductSpec,
     # pages fetched through a paid proxy cost bandwidth: open fewer
     limit = http.PROXIED_PAGE_CHECKS if ranked and http.proxy_for(ranked[0][0].spec.url or "") else CODE_CHECKS
     pool = ranked[:limit]
-    pages = await asyncio.gather(*(platform.product_page(r.spec) for r, _ in pool), return_exceptions=True)
-    for (r, _), page in zip(pool, pages):
-        if not isinstance(page, str):
-            continue
-        listed = platform.listed_codes(page, src.category)
-        code = next((c for c in src.model_codes if any(_same_identifier(src.category, c, x) for x in listed)), None)
-        if code is None and src.category != Category.TELEVISION:
-            idents = platform.identity_text(page)
-            code = next((c for c in src.model_codes if code_in_text(c, idents)), None)
-        if code is None:
-            if listed:
-                # The listing states its own identifier and it isn't Amazon's: a different product
-                # ("GRAND COURT BASE 3.0" is LA1520, not IH1476)
-                r.checks.append(Check(name=name, ok=False, source=src.model_codes[0], candidate=listed[0],
-                                      note=f"the listing's {name.lower()} is different"))
-                r.matched = False
-            continue
-        for c in r.checks:
-            if overridable(c) and not c.ok:
-                c.ok, c.note = True, f"confirmed by {name.lower()}"
-        r.checks.append(Check(name=name, ok=True, required=False, source=code,
-                              candidate="found on listing", note=f"exact {name.lower()} match"))
-        r.score += 5
-        r.matched = all(c.ok for c in r.checks if c.required)
-        idx = next(j for j, x in enumerate(evaluated) if x[0] is r)
-        evaluated[idx] = (r, "high")
+    # Open pages a few at a time, in parallel within each batch, and stop once one proves the match.
+    # (All ten at once through a residential proxy share one connection: ~15 MB and 20-30 s.)
+    proven = False
+    for start in range(0, len(pool), PAGE_BATCH):
+        if proven:
+            break
+        batch = pool[start:start + PAGE_BATCH]
+        pages = await asyncio.gather(*(platform.product_page(r.spec) for r, _ in batch), return_exceptions=True)
+        for (r, _), page in zip(batch, pages):
+            if not isinstance(page, str):
+                continue
+            listed = platform.listed_codes(page, src.category)
+            code = next((c for c in src.model_codes if any(_same_identifier(src.category, c, x) for x in listed)), None)
+            if code is None and src.category != Category.TELEVISION:
+                idents = platform.identity_text(page)
+                code = next((c for c in src.model_codes if code_in_text(c, idents)), None)
+            if code is None:
+                if listed:
+                    # The listing states its own identifier and it isn't Amazon's: a different product
+                    # ("GRAND COURT BASE 3.0" is LA1520, not IH1476)
+                    r.checks.append(Check(name=name, ok=False, source=src.model_codes[0], candidate=listed[0],
+                                          note=f"the listing's {name.lower()} is different"))
+                    r.matched = False
+                continue
+            for c in r.checks:
+                if overridable(c) and not c.ok:
+                    c.ok, c.note = True, f"confirmed by {name.lower()}"
+            r.checks.append(Check(name=name, ok=True, required=False, source=code,
+                                  candidate="found on listing", note=f"exact {name.lower()} match"))
+            r.score += 5
+            r.matched = all(c.ok for c in r.checks if c.required)
+            idx = next(j for j, x in enumerate(evaluated) if x[0] is r)
+            evaluated[idx] = (r, "high")
+            proven = True
 
 
 async def match(url: str) -> MatchResponse:
