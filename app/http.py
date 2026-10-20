@@ -49,8 +49,10 @@ PROXY_URL = os.getenv("PROXY_URL", "").strip().strip("'\"").strip() or None  # t
 # Which blocked sites go through the proxy: "myntra,flipkart" (default) or just "myntra" to save
 # bandwidth -- Myntra costs ~0.1 MB per lookup, Flipkart product pages ~1.4 MB each.
 PROXY_SCOPE = {s.strip() for s in os.getenv("PROXY_SCOPE", "myntra,flipkart").split(",") if s.strip()}
-# Product pages opened per lookup when they go through the proxy (10 when direct)
-PROXIED_PAGE_CHECKS = int(os.getenv("PROXIED_PAGE_CHECKS", "3"))
+# Product pages opened per lookup when they go through the proxy. Same as direct (10) by default:
+# fewer pages measurably misses style-code matches (2 of 40 in the live answer-key test at 3).
+# Lower it (e.g. 3) only to stretch a small proxy data allowance.
+PROXIED_PAGE_CHECKS = int(os.getenv("PROXIED_PAGE_CHECKS", "10"))
 
 
 def proxy_for(url: str) -> str | None:
