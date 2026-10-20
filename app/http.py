@@ -46,6 +46,11 @@ class FetchError(Exception):
 
 
 PROXY_URL = os.getenv("PROXY_URL", "").strip() or None
+# Which blocked sites go through the proxy: "myntra,flipkart" (default) or just "myntra" to save
+# bandwidth -- Myntra costs ~0.1 MB per lookup, Flipkart product pages ~1.4 MB each.
+PROXY_SCOPE = {s.strip() for s in os.getenv("PROXY_SCOPE", "myntra,flipkart").split(",") if s.strip()}
+# Product pages opened per lookup when they go through the proxy (10 when direct)
+PROXIED_PAGE_CHECKS = int(os.getenv("PROXIED_PAGE_CHECKS", "3"))
 
 
 def proxy_for(url: str) -> str | None:
@@ -54,10 +59,10 @@ def proxy_for(url: str) -> str | None:
         return None
     u = urlparse(url)
     host = u.netloc.lower()
-    if host.endswith("myntra.com"):
+    if host.endswith("myntra.com") and "myntra" in PROXY_SCOPE:
         return PROXY_URL
-    if host.endswith("flipkart.com") and "/p/" in u.path:  # product pages; search works directly
-        return PROXY_URL
+    if host.endswith("flipkart.com") and "/p/" in u.path and "flipkart" in PROXY_SCOPE:
+        return PROXY_URL  # product pages; search works directly
     return None
 
 

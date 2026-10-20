@@ -5,7 +5,7 @@ import asyncio
 import logging
 import time
 
-from . import amazon
+from . import amazon, http
 from .matcher import evaluate, source_words
 from .models import Category, CandidateResult, Check, MatchResponse, PlatformResult, ProductSpec, Status
 from .normalize import code_in_text, codes_match, colour_families, compact, model_codes, style_codes_match
@@ -180,8 +180,11 @@ async def _verify_identifiers(platform: Platform, src: ProductSpec,
 
     # Listings that already match by name come first: they're what we'd otherwise show, so they must be
     # checked; then the most promising of the rest.
-    pool = sorted((x for x in evaluated if promising(x[0])),
-                  key=lambda x: (x[0].matched, exact_colour(x[0]), x[0].score), reverse=True)[:CODE_CHECKS]
+    ranked = sorted((x for x in evaluated if promising(x[0])),
+                    key=lambda x: (x[0].matched, exact_colour(x[0]), x[0].score), reverse=True)
+    # pages fetched through a paid proxy cost bandwidth: open fewer
+    limit = http.PROXIED_PAGE_CHECKS if ranked and http.proxy_for(ranked[0][0].spec.url or "") else CODE_CHECKS
+    pool = ranked[:limit]
     pages = await asyncio.gather(*(platform.product_page(r.spec) for r, _ in pool), return_exceptions=True)
     for (r, _), page in zip(pool, pages):
         if not isinstance(page, str):
