@@ -73,6 +73,9 @@
   .price small { font-size: 12px; font-weight: 600; color: var(--ok); margin-left: 6px; }
   .cta { display: inline-block; text-align: center; text-decoration: none; padding: 10px 14px; border-radius: 10px; font-weight: 600; }
   .in_stock .cta { background: var(--ok); color: #fff; }
+  .result.unconfirmed::before { background: repeating-linear-gradient(var(--ok) 0 6px, transparent 6px 10px); }
+  .unconfirmed .badge { background: var(--surface-2); color: var(--ok); } .unconfirmed .dot { background: transparent; border: 2px solid var(--ok); }
+  .unconfirmed .cta { background: transparent; border: 1px solid var(--ok); color: var(--ok); }
   .out_of_stock .cta { border: 1px solid var(--warn); color: var(--warn); }
   .explain { color: var(--muted); font-size: 14px; margin: 0; }
   .conf { font-size: 12px; color: var(--muted); }
@@ -129,6 +132,7 @@ const $ = (s, el = document) => el.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const STATUS = {
   in_stock: { label: "In stock", explain: "Found the same product, and you can buy it." },
+  unconfirmed: { label: "Listed · stock unconfirmed", explain: "Found the same product; the shop didn't confirm stock." },
   out_of_stock: { label: "Out of stock", explain: "Found the same product, but it can't be bought right now." },
   not_listed: { label: "Not listed", explain: "This platform doesn't sell this product." },
   error: { label: "Couldn't check", explain: "We couldn't reach this platform just now. Try again in a minute." },
@@ -153,18 +157,20 @@ function checksTable(checks) {
 }
 
 function resultHtml(r, cheapest) {
-  const st = STATUS[r.status];
+  // found, but the platform's stock check didn't answer: don't claim "In stock"
+  const kind = r.status === "in_stock" && r.stock_confirmed === false ? "unconfirmed" : r.status;
+  const st = STATUS[kind];
   let body = "";
   if (r.match) {
     const m = r.match;
-    const isCheapest = r.status === "in_stock" && cheapest != null && m.price === cheapest;
+    const isCheapest = kind === "in_stock" && cheapest != null && m.price === cheapest;
     body = `<div class="r-body">
         ${m.image ? `<img src="${esc(m.image)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : "<div></div>"}
         <div><div class="r-title">${esc(m.title)}</div>
           ${m.price ? `<div class="price">${rupees(m.price)}${isCheapest ? "<small>lowest</small>" : ""}</div>` : ""}
           ${m.colour ? `<div class="meta">Colour: ${esc(m.colour)}</div>` : ""}
         </div></div>
-      <a class="cta" href="${esc(m.url)}" target="_blank" rel="noopener">${r.status === "in_stock" ? "Buy on" : "View on"} ${esc(r.platform)} →</a>
+      <a class="cta" href="${esc(m.url)}" target="_blank" rel="noopener">${kind === "in_stock" ? "Buy on" : "View on"} ${esc(r.platform)} →</a>
       ${r.confidence ? `<div class="conf">Match confidence: <b>${esc(r.confidence)}</b></div>` : ""}
       ${r.notes.length ? `<ul class="notes">${r.notes.map(n => `<li>${esc(n)}</li>`).join("")}</ul>` : ""}
       <details><summary>Why we think it's the same product</summary>${checksTable(r.checks)}</details>`;
@@ -180,7 +186,7 @@ function resultHtml(r, cheapest) {
     }
   }
   const searched = r.search_query ? `<div class="meta">Searched “${esc(r.search_query)}”, looked at ${r.candidates_seen} listings · ${(r.elapsed_ms / 1000).toFixed(1)}s</div>` : "";
-  return `<article class="card result ${r.status}">
+  return `<article class="card result ${kind}">
       <div class="r-head"><span class="platform">${esc(r.platform)}</span>
         <span class="badge"><span class="dot"></span>${st.label}</span></div>
       ${body}${searched}</article>`;
@@ -188,7 +194,7 @@ function resultHtml(r, cheapest) {
 
 function render(data) {
   const s = data.source;
-  const prices = data.results.filter(r => r.status === "in_stock" && r.match?.price).map(r => r.match.price);
+  const prices = data.results.filter(r => r.status === "in_stock" && r.stock_confirmed !== false && r.match?.price).map(r => r.match.price);
   // "lowest" only when one platform is strictly cheaper than everything else, Amazon included
   const all = [...prices, ...(s.price ? [s.price] : [])].sort((a, b) => a - b);
   const cheapest = prices.length && (all.length === 1 || all[0] < all[1]) && prices.includes(all[0]) ? all[0] : null;

@@ -59,12 +59,13 @@ We always read the number of any toy *before* we show it to you.
 
 If the exact toy is sold out, we say **"out of stock"**. We never swap in a different toy that happens to be in stock.
 
-## 6. And we tell you one of three things
+## 6. And we tell you what we found
 
 | | What it means |
 |---|---|
 | ● **In stock** | Found the same toy, and you can buy it. Here's the link. |
 | ◐ **Out of stock** | Found the same toy, but you can't buy it right now. Here's the link anyway. |
+| ○ **Listed · stock unconfirmed** | Found the same toy, but the shop didn't tell us if it's in stock. Here's the link to check. |
 | ○ **Not listed** | This shop doesn't have this toy. (We still show the closest ones we saw and *why* they weren't the same.) |
 
 If a shop doesn't answer the phone at all, we say **"Couldn't check"** instead of pretending it doesn't have the toy.
@@ -79,4 +80,4 @@ We didn't just try a few toys. We looked up **about 760 real Amazon products** (
 
 ## The one rule behind all of it
 
-**It's better to say "I couldn't find it" than to send you to the wrong toy.** So every match has to pass every check, and the app shows you the checklist, so you never have to take our word for it.
+**It's better to say "I couldn't find it" than to send you to the wrong toy.** So a match has to pass every check that matters for its kind (colour only counts as a preference for phones and TVs), a special number beats a vague name, and if a shop won't tell us whether it's in stock we say "stock unconfirmed" instead of guessing. The app shows you the checklist, so you never have to take our word for it.

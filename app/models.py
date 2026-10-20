@@ -64,6 +64,7 @@ class PlatformResult(BaseModel):
     status: Status
     match: ProductSpec | None = None
     confidence: str | None = None  # high / medium / low — how sure we are it's the same product
+    stock_confirmed: bool | None = None  # False: found and listed, but the platform's stock check didn't answer
     checks: list[Check] = Field(default_factory=list)
     notes: list[str] = Field(default_factory=list)
     search_query: str | None = None

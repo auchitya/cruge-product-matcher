@@ -129,12 +129,15 @@ async def check_platform(platform: Platform, src: ProductSpec) -> PlatformResult
     result.match = best.spec
     result.checks = best.checks
     result.confidence = confidence
+    result.stock_confirmed = stock[chosen_i] is not None
     if stock[chosen_i] is False:
         result.status = Status.OUT_OF_STOCK
     else:
+        # Listed and not reported sold out. If the stock check itself didn't answer, say so rather than
+        # claim "in stock": the card shows "Listed · stock unconfirmed".
         result.status = Status.IN_STOCK
         if stock[chosen_i] is None:
-            result.notes.append("Listed, but we couldn't confirm stock.")
+            result.notes.append("Listed, but the platform didn't confirm stock; check the link before buying.")
     colour = next((c for c in best.checks if c.name == "Colour" and not c.required), None)
     if colour and not colour.ok:
         result.notes.append(f"Only found in a different colour ({best.spec.colour}).")

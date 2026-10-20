@@ -131,3 +131,12 @@ def test_slow_platform_becomes_couldnt_check_not_a_hang(monkeypatch):
     monkeypatch.setattr(service.amazon, "resolve_url", fake_resolve)
     res = asyncio.run(service.match("https://www.amazon.in/dp/B000TEST01"))
     assert res.results[0].status == Status.ERROR and "longer than" in res.results[0].error
+
+
+def test_unconfirmed_stock_is_flagged_not_claimed():
+    # the platform's stock check returns None (no answer): listed, but stock_confirmed is False
+    r = run(FakePlatform([phone("Apple iPhone 15 (Black, 128 GB)", pid="a", in_stock=None)]))
+    assert r.status == Status.IN_STOCK and r.stock_confirmed is False
+    assert any("didn't confirm stock" in n for n in r.notes)
+    r = run(FakePlatform([phone("Apple iPhone 15 (Black, 128 GB)", pid="a", in_stock=True)]))
+    assert r.stock_confirmed is True
