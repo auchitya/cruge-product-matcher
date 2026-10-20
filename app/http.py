@@ -81,7 +81,7 @@ async def get(url: str, *, params: dict | None = None, headers: dict | None = No
             if r.status_code in ok_statuses:
                 return r
             last = FetchError(f"HTTP {r.status_code} from {url.split('?')[0]}")
-            if r.status_code in (404, 410):
+            if r.status_code in (401, 404, 410):  # asking again the same way won't change the answer
                 break
         except Exception as e:  # network errors, timeouts
             last = FetchError(f"{type(e).__name__}: {e}")

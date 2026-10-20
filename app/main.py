@@ -14,6 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from . import http, service
+from .platforms import myntra
 from .amazon import AmazonError
 from .models import MatchResponse
 
@@ -23,7 +24,15 @@ STATIC = Path(__file__).resolve().parent.parent / "static"
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    async def warm() -> None:
+        try:
+            await myntra.warm_cookies()
+        except Exception as e:  # the first lookup will fetch them instead
+            logging.getLogger(__name__).warning("Myntra cookie warm-up failed: %s", e)
+
+    task = asyncio.create_task(warm())
     yield
+    task.cancel()
     await http.close()
 
 

@@ -6,6 +6,8 @@ objects.
 """
 from __future__ import annotations
 
+import asyncio
+
 from .. import http
 from ..models import Category, ProductSpec
 from ..normalize import garment_type, parse_gender, tokens
@@ -59,14 +61,33 @@ _API_HEADERS = {"x-meta-app": "channel=web", "x-myntraweb": "Yes", "x-requested-
                 "Accept": "application/json"}
 
 
+_cookies_ready = False
+_cookie_lock = asyncio.Lock()
+
+
+async def warm_cookies(refresh: bool = False) -> None:
+    """Fetch the homepage once for the session cookies the JSON API needs (401 without them).
+    Done at server start, so the first lookup doesn't pay for a refused call plus the homepage."""
+    global _cookies_ready
+    async with _cookie_lock:
+        if refresh or not _cookies_ready:
+            await http.get(f"{BASE}/", retries=1)
+            _cookies_ready = True
+
+
 async def _api_get(url: str, **params) -> dict:
-    """GET a Myntra JSON API; it needs the session cookies the homepage sets (401 without them)."""
+    """GET a Myntra JSON API with the homepage's session cookies, refreshing them once if refused."""
+    if not _cookies_ready:
+        try:
+            await warm_cookies()
+        except http.FetchError:
+            pass  # try the API anyway
     try:
         r = await http.get(url, headers=_API_HEADERS, params=params or None, retries=1)
     except http.FetchError as e:
         if "401" not in str(e) and "403" not in str(e):
             raise
-        await http.get(f"{BASE}/", retries=1)  # pick up session cookies, then try once more
+        await warm_cookies(refresh=True)  # cookies expired: pick up new ones, then try once more
         r = await http.get(url, headers=_API_HEADERS, params=params or None, retries=1)
     try:
         return r.json()
