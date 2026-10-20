@@ -348,7 +348,10 @@ def _common_prefix(a: str, b: str) -> str:
 # ---------------------------------------------------------------- model words
 
 # Adjectives sellers add to fashion titles; they never name a model ("Stylish", "for Regular wear").
+# Also who it's for (kids' size codes: PS = pre-school, GS = grade school, TD = toddler) and fabrics.
 _FASHION_MARKETING = {
+    "kid", "kids", "ps", "gs", "td", "youth", "junior", "infant", "infants", "toddler", "toddlers", "child",
+    "synthetic", "fabric", "viscose", "rayon", "linen", "modal", "nylon", "spandex", "cotton", "polyester",
     "stylish", "trendy", "fashion", "fashionable", "comfortable", "lightweight", "light", "weight", "premium",
     "daily", "wear", "everyday", "outdoor", "gym", "latest", "soft", "breathable", "durable", "sporty", "look",
     "office", "party", "attractive", "designer", "branded", "original", "perfect", "best", "quality", "anti",

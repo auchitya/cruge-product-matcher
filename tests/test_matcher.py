@@ -239,3 +239,16 @@ def test_generic_shape_words_are_not_a_model_name():
     ok, _, _ = decide(campus, spec("CAMPUS OG-22 High Tops For Men", SHOES, brand="CAMPUS", colour="White",
                                    gender="men"))
     assert ok  # "OG-22" is a name even though it's short
+
+
+def test_kids_size_words_and_fabrics_are_not_model_names():
+    kid = spec("Puma Unisex Kid Racer PS V2 Sneaker", SHOES, brand="PUMA", colour="Black-ARUBA BLUE-Silver",
+               gender="kids")
+    ok, _, _ = decide(kid, spec("Puma Kids Racer V2 Sneakers", SHOES, brand="Puma", colour="Black", gender="kids"))
+    assert ok
+    polo = spec("Allen Solly Women's Polo Neck Synthetic T-Shirt | Soft Touch Fabric", TEE, brand="Allen Solly",
+                colour="Lt Pink Solid", gender="women", product_type="polo")
+    result, _ = evaluate(polo, spec("Allen Solly Woman Polo Collar Short Sleeves T-shirt", TEE, brand="Allen Solly",
+                                    colour="Pink", gender="women", product_type="polo"))
+    model = next(c for c in result.checks if c.name == "Model")
+    assert "synthetic" not in (model.note or "")
