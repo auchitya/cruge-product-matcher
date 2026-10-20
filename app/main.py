@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import re
 from contextlib import asynccontextmanager
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
@@ -83,7 +85,21 @@ async def diag() -> dict:
         except Exception as e:
             results["proxy_exit"] = {"error": f"{type(e).__name__}: {e}"[:200]}
     results["proxy_scope"] = sorted(http.PROXY_SCOPE) if http.PROXY_URL else None
+    results["proxy_config"] = _describe_proxy(os.getenv("PROXY_URL"))
     return results
+
+
+def _describe_proxy(raw: str | None) -> dict | None:
+    """The shape of the configured PROXY_URL without revealing it: enough to spot a pasting mistake
+    (stray quotes/spaces, a cut-off username, a wrong port) by comparing with the provider's dashboard."""
+    if not raw:
+        return None
+    u = urlsplit(raw.strip().strip("'\""))
+    return {"scheme": u.scheme, "host": u.hostname, "port": u.port,
+            "username_length": len(u.username or ""), "username_ends_with": (u.username or "")[-10:],
+            "password_length": len(u.password or ""),
+            "raw_has_spaces_or_quotes": raw != raw.strip() or any(c in raw for c in " '\"\n"),
+            "raw_starts_with": raw[:7]}
 
 
 @app.get("/")

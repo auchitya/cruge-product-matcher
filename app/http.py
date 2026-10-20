@@ -45,7 +45,7 @@ class FetchError(Exception):
     pass
 
 
-PROXY_URL = os.getenv("PROXY_URL", "").strip() or None
+PROXY_URL = os.getenv("PROXY_URL", "").strip().strip("'\"").strip() or None  # tolerate pasted quotes/spaces
 # Which blocked sites go through the proxy: "myntra,flipkart" (default) or just "myntra" to save
 # bandwidth -- Myntra costs ~0.1 MB per lookup, Flipkart product pages ~1.4 MB each.
 PROXY_SCOPE = {s.strip() for s in os.getenv("PROXY_SCOPE", "myntra,flipkart").split(",") if s.strip()}
