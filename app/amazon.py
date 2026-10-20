@@ -53,13 +53,6 @@ async def fetch_spec(url: str) -> ProductSpec:
             r = await http.get(canon, retries=1)
         except http.FetchError as e:
             if "404" in str(e):
-                store = urlparse(url if re.match(r"^https?://", url.strip()) else "https://" + url.strip()).netloc.lower()
-                if "amazon." in store and not store.endswith("amazon.in"):
-                    # The other shops are Indian, so the product is read from amazon.in; an amazon.com (or
-                    # .co.uk, ...) ID often has no Indian listing
-                    raise AmazonError(f"That's a link from {store.removeprefix('www.')}, and this product isn't sold "
-                                      "on amazon.in. This app compares Indian stores (Flipkart, Croma, Myntra), so "
-                                      "please paste the product's amazon.in link.") from e
                 raise AmazonError("Amazon says this product page doesn't exist.") from e
             continue
         html = r.text
