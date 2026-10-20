@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How Matching Works</title>
+<style>
+  :root { --bg:#f7f3f5; --surface:#fff; --ink:#2a1720; --muted:#6d5862; --line:#e4d6dd; --accent:#a8577f;
+          --ok:#1f7a4d; --warn:#9a5b00; --none:#7a6c73; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#17110f; --surface:#221a1e; --ink:#f4ecef; --muted:#b8a7ae; --line:#3a2e34; --accent:#e0a6c2;
+            --ok:#5fd39a; --warn:#f2b45a; --none:#a99aa1; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.65 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 32px 16px 64px; }
+  a { color: var(--accent); }
+  h1 { font-size: clamp(26px, 4vw, 34px); line-height: 1.2; letter-spacing: -.02em; margin: 12px 0 8px; }
+  h2 { font-size: 20px; margin: 36px 0 8px; }
+  .lead { font-size: 18px; color: var(--muted); }
+  table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin: 12px 0; font-size: 15px; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  th { color: var(--muted); font-size: 13px; }
+  code { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; font-size: 14px; }
+  ul { padding-left: 22px; } li { margin: 6px 0; }
+  .rule { margin-top: 36px; padding: 18px 20px; background: var(--surface); border: 1px solid var(--line); border-left: 5px solid var(--accent); border-radius: 12px; }
+  .s-in { color: var(--ok); font-weight: 700; } .s-out { color: var(--warn); font-weight: 700; } .s-no { color: var(--none); font-weight: 700; }
+</style>
+</head>
+<body>
+<main>
+  <a href="/">← Back to the app</a>
+  <h1>How the matching works</h1>
+  <p class="lead">Explained like you're five. Imagine you have a toy car, and you want to know if two other toy shops have <b>the exact same car</b>.</p>
+
+  <h2>1. First, we look very closely at your toy</h2>
+  <p>We open the Amazon page and write down everything that makes your toy <i>your</i> toy:</p>
+  <ul>
+    <li><b>Who made it</b>: the brand, like <i>Samsung</i> or <i>Nike</i>.</li>
+    <li><b>What it's called</b>: the model, like <i>Galaxy S25</i> or <i>Court Vision</i>.</li>
+    <li><b>Its special number</b>, if it has one: like a name tag sewn inside. A TV has a model number (<code>K-55S25BM2</code>); a shoe or shirt has a style code (<code>IH1476</code>).</li>
+    <li><b>The thing that matters for its kind</b>: for a phone, how much it can remember (<b>RAM</b>) and hold (<b>storage</b>); for a TV, how big the screen is; for shoes and t-shirts, what <b>colour</b> they are.</li>
+  </ul>
+  <p>We also check what <i>kind</i> of toy it is, from the signpost Amazon puts on its shelf ("Smartphones", "Sneakers", "Polos"). If it's anything else (a sandal, a phone cover, a TV stand, a formal shirt), we say we only know those four kinds of toys.</p>
+
+  <h2>2. Then we go to the other shops and ask "do you have this?"</h2>
+  <p>Phones and TVs: we ask <b>Flipkart</b> and <b>Croma</b>. Shoes and t-shirts: we ask <b>Flipkart</b> and <b>Myntra</b>. Each shop shows us a pile of things that <i>look</i> a bit like our toy.</p>
+
+  <h2>3. We play "spot the difference" with every toy in the pile</h2>
+  <table>
+    <thead><tr><th>We ask</th><th>Same toy?</th></tr></thead>
+    <tbody>
+      <tr><td>Same maker?</td><td>Samsung ≠ Sony → not the same</td></tr>
+      <tr><td>Same name?</td><td>"iPhone 15" ≠ "iPhone 15 <b>Plus</b>" → not the same</td></tr>
+      <tr><td>Same size / memory / colour?</td><td>128 GB ≠ 256 GB → not the same</td></tr>
+      <tr><td>Is it even the right kind of thing?</td><td>a phone <i>cover</i> is not a phone; a sandal is not a sneaker</td></tr>
+    </tbody>
+  </table>
+  <p><b>Every</b> answer has to be "yes". One "no" and that toy goes back in the pile.</p>
+  <p>A few tricks so we don't get fooled:</p>
+  <ul>
+    <li><b>Little words change everything.</b> "Pro", "Plus", "Ultra" and numbers like "15" or "S25" must match exactly. "FX Pro" is not "X Pro", and a kids' shoe is not the grown-up one.</li>
+    <li><b>Some words are just shop talk.</b> "Stylish", "comfortable", "5G", "with Alexa", "4K <i>Ultra</i> HD". We didn't guess these: we read about 55,000 real product titles, and a word that dozens of <i>different</i> brands all use describes a kind of toy, not a particular one.</li>
+    <li><b>Shops spell colours differently.</b> "Jet Black" is black; "Midnight Navy" is navy; "Aubergine" is purple (we know about 950 colour names); and Nike's "Lt Orewood Brn" is light brown.</li>
+  </ul>
+
+  <h2>4. The special number is the best clue</h2>
+  <p>Toy names can be vague. A shop might call the official India cricket jersey just "Blue Printed T-Shirt". So when Amazon gives a special number, we <b>open the shop's page for that toy and read its number</b>:</p>
+  <ul>
+    <li><b>Same number</b> → it's definitely the same toy, even if the shop gave it a boring name.</li>
+    <li><b>Different number</b> → it's a different toy, even if it looks the same ("Stan Smith <code>FX5501</code>" is not "Stan Smith <code>FX5502</code>": that's another colour).</li>
+    <li><b>A tiny tail is OK; a new number isn't.</b> <code>43NU870</code> and <code>43NU870BPLA</code> are the same TV (the tail just says which country). <code>K-55S25B</code> and <code>K-55S25BM2</code> are different TVs: "M2" is the newer one.</li>
+  </ul>
+  <p>We always read the number of any toy <i>before</i> we show it to you.</p>
+
+  <h2>5. Finally, we check if you can actually buy it</h2>
+  <ul>
+    <li><b>Flipkart</b> tells us on its page ("in stock" or "sold out").</li>
+    <li><b>Croma</b> tells us city by city, so we ask for Mumbai, Delhi and Bengaluru. If any of them can deliver it, it's in stock.</li>
+    <li><b>Myntra</b> tells us which sizes are left. No sizes left means out of stock.</li>
+  </ul>
+  <p>If the exact toy is sold out, we say <b>"out of stock"</b>. We never swap in a different toy that happens to be in stock.</p>
+
+  <h2>6. And we tell you one of three things</h2>
+  <table>
+    <tbody>
+      <tr><td class="s-in">● In stock</td><td>Found the same toy, and you can buy it. Here's the link.</td></tr>
+      <tr><td class="s-out">◐ Out of stock</td><td>Found the same toy, but you can't buy it right now. Here's the link anyway.</td></tr>
+      <tr><td class="s-no">○ Not listed</td><td>This shop doesn't have this toy. (We still show the closest ones we saw and <i>why</i> they weren't the same.)</td></tr>
+    </tbody>
+  </table>
+  <p>If a shop doesn't answer the phone at all, we say <b>"Couldn't check"</b> instead of pretending it doesn't have the toy.</p>
+
+  <h2>How do we know it works?</h2>
+  <p>We didn't just try a few toys. We looked up <b>about 760 real Amazon products</b> (phones, TVs, sneakers, t-shirts, polos, jerseys from over 100 brands) and used the special numbers on both sides as the answer key:</p>
+  <ul>
+    <li>Whenever there was a special number to check, our answer was <b>right every time</b> (about 190 checks), including on 170 products we had never looked at while building it.</li>
+    <li>Phones checked by eye: right every time.</li>
+    <li>The weak spot: <b>plain clothes with no special number and a one-word name</b> (like "Everyday Basic" vs "Elevated Basics"). There, about 1 in 7 can be a lookalike, so the app marks those as <b>"medium confidence"</b>.</li>
+  </ul>
+
+  <div class="rule"><b>The one rule behind all of it:</b> it's better to say "I couldn't find it" than to send you to the wrong toy. So every match has to pass every check, and the app shows you the checklist, so you never have to take our word for it.</div>
+</main>
+</body>
+</html>

@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Same Product Finder</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='40' fill='%23642c4a'/></svg>">
+<style>
+  :root {
+    --bg: #f7f3f5; --surface: #ffffff; --surface-2: #f1e8ed; --ink: #2a1720; --muted: #6d5862; --line: #e4d6dd;
+    --brand: #642c4a; --brand-ink: #ffffff; --accent: #a8577f;
+    --ok: #1f7a4d; --ok-bg: #e5f4ec; --warn: #9a5b00; --warn-bg: #fdf1dc; --none: #7a6c73; --none-bg: #f3eef1;
+    --err: #b3261e; --err-bg: #fbe9e7;
+    --radius: 14px; --shadow: 0 1px 2px rgba(42,23,32,.06), 0 4px 16px rgba(42,23,32,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17110f; --surface: #221a1e; --surface-2: #2c2227; --ink: #f4ecef; --muted: #b8a7ae; --line: #3a2e34;
+      --brand: #c98aa9; --brand-ink: #1b1216; --accent: #e0a6c2;
+      --ok: #5fd39a; --ok-bg: #173226; --warn: #f2b45a; --warn-bg: #362811; --none: #a99aa1; --none-bg: #2a2226;
+      --err: #ff8a80; --err-bg: #3a1c1a; --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  a { color: var(--accent); }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 32px 16px 64px; }
+  header h1 { font-size: clamp(26px, 4vw, 36px); margin: 0 0 6px; letter-spacing: -.02em; }
+  header h1 em { font-style: normal; color: var(--accent); }
+  header p { margin: 0; color: var(--muted); }
+  form { display: flex; gap: 10px; margin: 24px 0 10px; }
+  input[type=url] { flex: 1; min-width: 0; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: 15px; }
+  input[type=url]:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  button { border: 0; border-radius: 12px; padding: 0 22px; background: var(--brand); color: var(--brand-ink); font-weight: 600; font-size: 15px; cursor: pointer; }
+  button:disabled { opacity: .6; cursor: progress; }
+  .examples { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; color: var(--muted); font-size: 13px; }
+  .chip { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 4px 12px; font-size: 13px; cursor: pointer; }
+  .chip:hover { border-color: var(--accent); }
+  .msg { margin-top: 24px; padding: 14px 16px; border-radius: var(--radius); background: var(--err-bg); color: var(--err); }
+  .loading { margin-top: 28px; color: var(--muted); display: flex; align-items: center; gap: 10px; }
+  .spinner { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--accent); animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .section-label { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 32px 0 10px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+  .source { display: grid; grid-template-columns: 120px 1fr; gap: 18px; padding: 18px; }
+  .source img, .result img { width: 100%; aspect-ratio: 1; object-fit: contain; background: #fff; border-radius: 10px; }
+  .source h2 { font-size: 17px; margin: 0 0 8px; line-height: 1.35; }
+  .facts { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+  .fact { background: var(--surface-2); border-radius: 8px; padding: 3px 9px; font-size: 13px; }
+  .fact b { font-weight: 600; color: var(--muted); margin-right: 4px; font-size: 12px; }
+  .meta { color: var(--muted); font-size: 13px; }
+
+  .results { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+  .result { padding: 18px; display: flex; flex-direction: column; gap: 12px; border-width: 1px; position: relative; overflow: hidden; }
+  .result::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; }
+  .result.in_stock::before { background: var(--ok); }
+  .result.out_of_stock::before { background: var(--warn); }
+  .result.not_listed { background: transparent; border-style: dashed; box-shadow: none; }
+  .result.error::before { background: var(--err); }
+  .r-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .platform { font-weight: 700; font-size: 18px; }
+  .badge { display: inline-flex; align-items: center; gap: 7px; border-radius: 999px; padding: 4px 12px; font-weight: 600; font-size: 13px; white-space: nowrap; }
+  .badge .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .in_stock .badge { background: var(--ok-bg); color: var(--ok); } .in_stock .dot { background: var(--ok); }
+  .out_of_stock .badge { background: var(--warn-bg); color: var(--warn); } .out_of_stock .dot { background: linear-gradient(90deg, var(--warn) 50%, transparent 50%); border: 2px solid var(--warn); }
+  .not_listed .badge { background: var(--none-bg); color: var(--none); } .not_listed .dot { border: 2px solid var(--none); }
+  .error .badge { background: var(--err-bg); color: var(--err); } .error .dot { background: var(--err); }
+  .r-body { display: grid; grid-template-columns: 84px 1fr; gap: 14px; align-items: start; }
+  .out_of_stock .r-body img { filter: grayscale(.7); opacity: .75; }
+  .r-title { font-weight: 600; line-height: 1.35; }
+  .price { font-size: 18px; font-weight: 700; margin-top: 4px; }
+  .price small { font-size: 12px; font-weight: 600; color: var(--ok); margin-left: 6px; }
+  .cta { display: inline-block; text-align: center; text-decoration: none; padding: 10px 14px; border-radius: 10px; font-weight: 600; }
+  .in_stock .cta { background: var(--ok); color: #fff; }
+  .out_of_stock .cta { border: 1px solid var(--warn); color: var(--warn); }
+  .explain { color: var(--muted); font-size: 14px; margin: 0; }
+  .conf { font-size: 12px; color: var(--muted); }
+  .conf b { color: var(--ink); }
+  .notes { margin: 0; padding-left: 18px; color: var(--muted); font-size: 13px; }
+  details { border-top: 1px solid var(--line); padding-top: 10px; }
+  summary { cursor: pointer; color: var(--muted); font-size: 13px; font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 13px; table-layout: fixed; }
+  th, td { text-align: left; padding: 6px 6px; border-bottom: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; }
+  td.ok { color: var(--ok); font-weight: 700; width: 26px; } td.bad { color: var(--err); font-weight: 700; width: 26px; } td.pref { color: var(--muted); width: 26px; }
+  .why { color: var(--muted); font-size: 12px; }
+  .miss { padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+  .miss:last-child { border-bottom: 0; }
+  .miss .reason { color: var(--err); }
+  footer { margin-top: 48px; color: var(--muted); font-size: 13px; display: flex; gap: 16px; flex-wrap: wrap; }
+  @media (max-width: 560px) {
+    form { flex-direction: column; } button { padding: 13px; }
+    .source { grid-template-columns: 80px 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Find the <em>same product</em> on other platforms</h1>
+    <p>Paste an Amazon link to a smartphone, TV, pair of sneakers or t-shirt / polo / jersey.</p>
+  </header>
+
+  <form id="f">
+    <input id="url" type="url" required placeholder="https://www.amazon.in/dp/…" autocomplete="off">
+    <button id="go" type="submit">Find it</button>
+  </form>
+  <div class="examples">Try:
+    <button class="chip" data-url="https://www.amazon.in/dp/B0CHX1W1XY">iPhone 15</button>
+    <button class="chip" data-url="https://www.amazon.in/dp/B0H2J3PRKV">Galaxy S25</button>
+    <button class="chip" data-url="https://www.amazon.in/dp/B0F7X5FC43">Sony Bravia 55″</button>
+    <button class="chip" data-url="https://www.amazon.in/dp/B0F3JKY28G">Xiaomi FX Pro 43″</button>
+    <button class="chip" data-url="https://www.amazon.in/dp/B0F2FFQPYW">adidas Grand Court</button>
+    <button class="chip" data-url="https://www.amazon.in/dp/B098PC5X7Y">Nike Court Vision</button>
+    <button class="chip" data-url="https://www.amazon.in/dp/B0BFX1ND5G">Puma polo</button>
+  </div>
+
+  <div id="out"></div>
+
+  <footer>
+    <a href="/static/how-it-works.html">How the matching works (for a 5-year-old)</a>
+    <span>Results are live — each search reads Amazon, Flipkart, Croma and Myntra right now.</span>
+  </footer>
+</div>
+
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const STATUS = {
+  in_stock: { label: "In stock", explain: "Found the same product, and you can buy it." },
+  out_of_stock: { label: "Out of stock", explain: "Found the same product, but it can't be bought right now." },
+  not_listed: { label: "Not listed", explain: "This platform doesn't sell this product." },
+  error: { label: "Couldn't check", explain: "We couldn't reach this platform just now. Try again in a minute." },
+};
+const CAT = { smartphone: "Smartphone", television: "Television", sneakers: "Sneakers", tshirt: "T-shirt / polo / jersey" };
+const rupees = v => v == null ? "" : "₹" + Math.round(v).toLocaleString("en-IN");
+const gb = v => v == null ? null : v >= 1024 ? `${v / 1024} TB` : `${v} GB`;
+
+function factsHtml(s) {
+  const f = [["Brand", s.brand], ["Category", CAT[s.category]], [["sneakers", "tshirt"].includes(s.category) ? "Style code" : "Model no.", s.model_codes?.[0]], ["RAM", gb(s.ram_gb)],
+             ["Storage", gb(s.storage_gb)], ["Screen", s.screen_inches && `${s.screen_inches}″`], ["Colour", s.colour],
+             ["For", s.gender], ["Type", s.product_type]];
+  return f.filter(([, v]) => v).map(([k, v]) => `<span class="fact"><b>${k}</b>${esc(v)}</span>`).join("");
+}
+
+function checksTable(checks) {
+  const rows = checks.map(c => `<tr>
+      <td class="${c.ok ? "ok" : c.required ? "bad" : "pref"}">${c.ok ? "✓" : c.required ? "✗" : "–"}</td>
+      <td><b>${esc(c.name)}</b>${c.required ? "" : ' <span class="why">(preference)</span>'}${c.note ? `<div class="why">${esc(c.note)}</div>` : ""}</td>
+      <td>${esc(c.source ?? "—")}</td><td>${esc(c.candidate ?? "—")}</td></tr>`).join("");
+  return `<table><thead><tr><th style="width:26px"></th><th>Check</th><th>Amazon</th><th>Here</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function resultHtml(r, cheapest) {
+  const st = STATUS[r.status];
+  let body = "";
+  if (r.match) {
+    const m = r.match;
+    const isCheapest = r.status === "in_stock" && cheapest != null && m.price === cheapest;
+    body = `<div class="r-body">
+        ${m.image ? `<img src="${esc(m.image)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : "<div></div>"}
+        <div><div class="r-title">${esc(m.title)}</div>
+          ${m.price ? `<div class="price">${rupees(m.price)}${isCheapest ? "<small>lowest</small>" : ""}</div>` : ""}
+          ${m.colour ? `<div class="meta">Colour: ${esc(m.colour)}</div>` : ""}
+        </div></div>
+      <a class="cta" href="${esc(m.url)}" target="_blank" rel="noopener">${r.status === "in_stock" ? "Buy on" : "View on"} ${esc(r.platform)} →</a>
+      ${r.confidence ? `<div class="conf">Match confidence: <b>${esc(r.confidence)}</b></div>` : ""}
+      ${r.notes.length ? `<ul class="notes">${r.notes.map(n => `<li>${esc(n)}</li>`).join("")}</ul>` : ""}
+      <details><summary>Why we think it's the same product</summary>${checksTable(r.checks)}</details>`;
+  } else {
+    body = `<p class="explain">${esc(r.error || st.explain)}</p>`;
+    if (r.near_misses?.length) {
+      body += `<details><summary>Closest listings we checked (not the same product)</summary>
+        ${r.near_misses.map(n => {
+          const bad = n.checks.filter(c => !c.ok && c.required).map(c => `${c.name}: ${c.note || `${c.source ?? "?"} vs ${c.candidate ?? "?"}`}`);
+          return `<div class="miss"><a href="${esc(n.spec.url)}" target="_blank" rel="noopener">${esc(n.spec.title)}</a>
+                  <div class="reason">✗ ${esc(bad.join(" · "))}</div></div>`;
+        }).join("")}</details>`;
+    }
+  }
+  const searched = r.search_query ? `<div class="meta">Searched “${esc(r.search_query)}”, looked at ${r.candidates_seen} listings · ${(r.elapsed_ms / 1000).toFixed(1)}s</div>` : "";
+  return `<article class="card result ${r.status}">
+      <div class="r-head"><span class="platform">${esc(r.platform)}</span>
+        <span class="badge"><span class="dot"></span>${st.label}</span></div>
+      ${body}${searched}</article>`;
+}
+
+function render(data) {
+  const s = data.source;
+  const prices = data.results.filter(r => r.status === "in_stock" && r.match?.price).map(r => r.match.price);
+  // "lowest" only when one platform is strictly cheaper than everything else, Amazon included
+  const all = [...prices, ...(s.price ? [s.price] : [])].sort((a, b) => a - b);
+  const cheapest = prices.length && (all.length === 1 || all[0] < all[1]) && prices.includes(all[0]) ? all[0] : null;
+  $("#out").innerHTML = `
+    <div class="section-label">On Amazon</div>
+    <div class="card source">
+      ${s.image ? `<img src="${esc(s.image)}" alt="" referrerpolicy="no-referrer">` : "<div></div>"}
+      <div><h2>${esc(s.title)}</h2>
+        <div class="facts">${factsHtml(s)}</div>
+        <div class="meta">${s.price ? `${rupees(s.price)} · ` : ""}<a href="${esc(s.url)}" target="_blank" rel="noopener">Open on Amazon</a> · answered in ${(data.elapsed_ms / 1000).toFixed(1)}s</div>
+      </div>
+    </div>
+    <div class="section-label">On other platforms</div>
+    <div class="results">${data.results.map(r => resultHtml(r, cheapest)).join("")}</div>`;
+}
+
+async function run(url) {
+  const btn = $("#go");
+  btn.disabled = true;
+  $("#out").innerHTML = `<div class="loading"><div class="spinner"></div>Reading Amazon, then searching the other platforms…</div>`;
+  history.replaceState(null, "", "?url=" + encodeURIComponent(url));
+  try {
+    const res = await fetch("/api/match", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || `Something went wrong (HTTP ${res.status}).`);
+    render(data);
+  } catch (e) {
+    $("#out").innerHTML = `<div class="msg">${esc(e.message)}</div>`;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+$("#f").addEventListener("submit", e => { e.preventDefault(); run($("#url").value.trim()); });
+document.querySelectorAll(".chip").forEach(c => c.addEventListener("click", () => { $("#url").value = c.dataset.url; run(c.dataset.url); }));
+const initial = new URLSearchParams(location.search).get("url");
+if (initial) { $("#url").value = initial; run(initial); }
+</script>
+</body>
+</html>

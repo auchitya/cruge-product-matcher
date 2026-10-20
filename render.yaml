@@ -1,0 +1,10 @@
+# Render blueprint: New + > Blueprint > pick this repo. Free plan, Singapore (closest region to the
+# Indian sites the app reads), built from the Dockerfile.
+services:
+  - type: web
+    name: same-product-finder
+    runtime: docker
+    plan: free
+    region: singapore
+    healthCheckPath: /api/health
+    autoDeploy: true
