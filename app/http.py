@@ -8,12 +8,15 @@ Some sites refuse cloud-server IP addresses outright (Myntra answers with a fake
 "Site Maintenance" page; Flipkart's product pages answer 429). When PROXY_URL is set
 (e.g. a residential proxy, http://user:pass@host:port), only those requests go through
 it -- residential proxies are billed by bandwidth, and everything else works directly.
+A site that starts refusing the server later (Croma's Akamai can begin answering 403) is
+switched to the proxy on the spot, for a while, instead of failing.
 """
 from __future__ import annotations
 
 import asyncio
 import logging
 import os
+import time
 from urllib.parse import urlparse
 
 from curl_cffi.requests import AsyncSession, Response
@@ -53,6 +56,9 @@ PROXY_SCOPE = {s.strip() for s in os.getenv("PROXY_SCOPE", "myntra,flipkart").sp
 # fewer pages measurably misses style-code matches (2 of 40 in the live answer-key test at 3).
 # Lower it (e.g. 3) only to stretch a small proxy data allowance.
 PROXIED_PAGE_CHECKS = int(os.getenv("PROXIED_PAGE_CHECKS", "10"))
+# A site that refuses a direct request (403/429) is sent through the proxy for this long.
+BLOCKED_FOR = 30 * 60
+_blocked_until: dict[str, float] = {}  # host -> monotonic deadline
 
 
 def proxy_for(url: str) -> str | None:
@@ -65,6 +71,8 @@ def proxy_for(url: str) -> str | None:
         return PROXY_URL
     if host.endswith("flipkart.com") and "/p/" in u.path and "flipkart" in PROXY_SCOPE:
         return PROXY_URL  # product pages; search works directly
+    if _blocked_until.get(host, 0) > time.monotonic():
+        return PROXY_URL  # refused us directly a moment ago
     return None
 
 
@@ -74,17 +82,29 @@ async def get(url: str, *, params: dict | None = None, headers: dict | None = No
     proxy = proxy_for(url)
     if proxy:  # proxies are slower and occasionally stall: fail fast rather than make the user wait
         retries = min(retries, 1)
-    for attempt in range(retries + 1):
+    attempt = 0
+    while True:
         try:
             r = await session().get(url, params=params, headers=headers, allow_redirects=True, proxy=proxy,
                                     timeout=20)
             if r.status_code in ok_statuses:
                 return r
             last = FetchError(f"HTTP {r.status_code} from {url.split('?')[0]}")
+            if r.status_code in (403, 429) and not proxy and PROXY_URL:
+                # This site has started refusing the server: switch it to the proxy and ask again now
+                host = urlparse(url).netloc.lower()
+                _blocked_until[host] = time.monotonic() + BLOCKED_FOR
+                log.warning("%s refused a direct request (HTTP %s); using the proxy for it for %d min",
+                            host, r.status_code, BLOCKED_FOR // 60)
+                proxy, attempt, retries = PROXY_URL, 0, 1
+                continue
             if r.status_code in (401, 404, 410):  # asking again the same way won't change the answer
                 break
         except Exception as e:  # network errors, timeouts
             last = FetchError(f"{type(e).__name__}: {e}")
-        await asyncio.sleep(0.4 * (attempt + 1))
+        if attempt >= retries:
+            break
+        attempt += 1
+        await asyncio.sleep(0.4 * attempt)
     assert last is not None
     raise last
